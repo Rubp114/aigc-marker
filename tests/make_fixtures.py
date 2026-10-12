@@ -1,4 +1,4 @@
-"""Generate minimal test fixtures for xltx / xmind / uot / ofd and verify marking."""
+"""Generate minimal test fixtures for xltx / dotx / potx / xmind / uof family / ofd and verify marking."""
 import json
 import os
 import subprocess
@@ -16,6 +16,43 @@ def make_xltx(path):
     wb.active.title = "Sheet1"
     wb.active["A1"] = "hello"
     wb.save(path)
+
+
+def _swap_main_content_type(src_path, dst_path, doc_ct, tpl_ct):
+    """Rewrite [Content_Types].xml, replacing the main document content type."""
+    with zipfile.ZipFile(src_path) as zin, \
+         zipfile.ZipFile(dst_path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "[Content_Types].xml":
+                data = data.replace(doc_ct.encode(), tpl_ct.encode())
+            zout.writestr(item, data)
+
+
+def make_dotx(path):
+    import docx
+    tmp = path + ".tmp.docx"
+    doc = docx.Document()
+    doc.add_paragraph("hello")
+    doc.save(tmp)
+    _swap_main_content_type(
+        tmp, path,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
+    os.remove(tmp)
+
+
+def make_potx(path):
+    from pptx import Presentation
+    tmp = path + ".tmp.pptx"
+    prs = Presentation()
+    prs.slides.add_slide(prs.slide_layouts[6])  # blank slide
+    prs.save(tmp)
+    _swap_main_content_type(
+        tmp, path,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+        "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml")
+    os.remove(tmp)
 
 
 def make_xmind_modern(path):
@@ -61,6 +98,42 @@ def make_uot(path):
         '</uof:UOF>')
     with open(path, "w", encoding="utf-8") as f:
         f.write(uot)
+
+
+def make_uos(path):
+    uos = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<uof:UOF xmlns:uof="http://schemas.uof.org/cn/2009/uof" '
+        'xmlns:表="http://schemas.uof.org/cn/2009/spreadsheet">\n'
+        '<uof:元数据><uof:标题>测试表格</uof:标题></uof:元数据>\n'
+        '<表:电子表格文档>\n'
+        '<表:工作表集>\n'
+        '<表:工作表 表:名称="Sheet1">\n'
+        '<表:行><表:单元格><表:数据>原始数据</表:数据></表:单元格></表:行>\n'
+        '</表:工作表>\n'
+        '</表:工作表集>\n'
+        '</表:电子表格文档>\n'
+        '</uof:UOF>')
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(uos)
+
+
+def make_uop(path):
+    uop = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<uof:UOF xmlns:uof="http://schemas.uof.org/cn/2009/uof" '
+        'xmlns:演="http://schemas.uof.org/cn/2009/slideshow">\n'
+        '<uof:元数据><uof:标题>测试演示</uof:标题></uof:元数据>\n'
+        '<演:演示文稿文档>\n'
+        '<演:幻灯片集>\n'
+        '<演:幻灯片 标识符="s1">\n'
+        '<演:段落><演:句><演:文本符>标题</演:文本符></演:句></演:段落>\n'
+        '</演:幻灯片>\n'
+        '</演:幻灯片集>\n'
+        '</演:演示文稿文档>\n'
+        '</uof:UOF>')
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(uop)
 
 
 def make_ofd(path):
@@ -126,15 +199,29 @@ def check(name, path, extra=None):
 def main():
     os.makedirs(FIXTURE_DIR, exist_ok=True)
     make_xltx(os.path.join(FIXTURE_DIR, "test.xltx"))
+    make_dotx(os.path.join(FIXTURE_DIR, "test.dotx"))
+    make_potx(os.path.join(FIXTURE_DIR, "test.potx"))
     make_xmind_modern(os.path.join(FIXTURE_DIR, "modern.xmind"))
     make_xmind_legacy(os.path.join(FIXTURE_DIR, "legacy.xmind"))
     make_uot(os.path.join(FIXTURE_DIR, "test.uot"))
+    make_uot(os.path.join(FIXTURE_DIR, "test.uott"))  # same structure as uot
+    make_uos(os.path.join(FIXTURE_DIR, "test.uos"))
+    make_uos(os.path.join(FIXTURE_DIR, "test.uost"))  # same structure as uos
+    make_uop(os.path.join(FIXTURE_DIR, "test.uop"))
+    make_uop(os.path.join(FIXTURE_DIR, "test.uopt"))  # same structure as uop
     make_ofd(os.path.join(FIXTURE_DIR, "test.ofd"))
 
     check("xltx", os.path.join(FIXTURE_DIR, "test.xltx"))
+    check("dotx", os.path.join(FIXTURE_DIR, "test.dotx"))
+    check("potx", os.path.join(FIXTURE_DIR, "test.potx"))
     check("xmind-modern", os.path.join(FIXTURE_DIR, "modern.xmind"))
     check("xmind-legacy", os.path.join(FIXTURE_DIR, "legacy.xmind"))
     check("uot", os.path.join(FIXTURE_DIR, "test.uot"))
+    check("uott", os.path.join(FIXTURE_DIR, "test.uott"))
+    check("uos", os.path.join(FIXTURE_DIR, "test.uos"))
+    check("uost", os.path.join(FIXTURE_DIR, "test.uost"))
+    check("uop", os.path.join(FIXTURE_DIR, "test.uop"))
+    check("uopt", os.path.join(FIXTURE_DIR, "test.uopt"))
     check("ofd", os.path.join(FIXTURE_DIR, "test.ofd"))
     check("ofd-skip-visible", os.path.join(FIXTURE_DIR, "test.ofd"), ["--skip-visible"])
 

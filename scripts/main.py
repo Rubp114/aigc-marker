@@ -6,8 +6,9 @@ Usage:
     python main.py <file_path>
 
 Arguments:
-    file_path    Path to the target file (.docx, .pdf, .xlsx, .xltx, .pptx, .md,
-                 .xmind, .uot, .ofd, .jpg, .png, etc.)
+    file_path    Path to the target file (.docx, .dotx, .pdf, .xlsx, .xltx,
+                 .pptx, .potx, .md, .xmind, .uot, .uott, .uos, .uost, .uop,
+                 .uopt, .ofd, .jpg, .png, etc.)
 """
 import argparse
 import os
@@ -37,8 +38,12 @@ def validate_file(file_path: str) -> bool:
         return False
 
     ext = get_file_extension(file_path)
-    supported = ['.docx', '.pdf', '.xlsx', '.xltx', '.pptx', '.md',
-                 '.xmind', '.uot', '.ofd',
+    # a) OOXML 文本: docx/dotx/pptx/potx/xlsx/xltx
+    # b) UOF 文本: uot/uott/uos/uost/uop/uopt
+    # c) PDF: pdf;  d) OFD: ofd;  e) Markdown: md;  f) XMind: xmind
+    supported = ['.docx', '.dotx', '.pptx', '.potx', '.xlsx', '.xltx',
+                 '.uot', '.uott', '.uos', '.uost', '.uop', '.uopt',
+                 '.pdf', '.ofd', '.md', '.xmind',
                  '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif',
                  '.wav', '.mp3', '.ogg', '.flac', '.m4a',
                  '.mp4', '.flv', '.mkv', '.avi',
@@ -57,7 +62,7 @@ def add_aigc_mark(file_path: str, add_visible_mark: bool = True):
     # Generate a simple content hash based on file info
     content = f"{file_path}_{os.path.getmtime(file_path)}"
 
-    if ext == '.docx':
+    if ext in ('.docx', '.dotx'):
         docx_aigc_decorator.decorate(file_path, content, add_visible_mark)
         print(f"[OK] AIGC mark added to Word document: {file_path}")
     elif ext == '.pdf':
@@ -66,7 +71,7 @@ def add_aigc_mark(file_path: str, add_visible_mark: bool = True):
     elif ext in ('.xlsx', '.xltx'):
         excel_aigc_decorator.decorate(file_path, content, add_visible_mark)
         print(f"[OK] AIGC mark added to Excel file: {file_path}")
-    elif ext == '.pptx':
+    elif ext in ('.pptx', '.potx'):
         ppt_aigc_decorator.decorate(file_path, content, add_visible_mark)
         print(f"[OK] AIGC mark added to PowerPoint presentation: {file_path}")
     elif ext == '.md':
@@ -75,9 +80,9 @@ def add_aigc_mark(file_path: str, add_visible_mark: bool = True):
     elif ext == '.xmind':
         xmind_aigc_decorator.decorate(file_path, content, add_visible_mark)
         print(f"[OK] AIGC mark added to XMind file: {file_path}")
-    elif ext == '.uot':
+    elif ext in ('.uot', '.uott', '.uos', '.uost', '.uop', '.uopt'):
         uot_aigc_decorator.decorate(file_path, content, add_visible_mark)
-        print(f"[OK] AIGC mark added to UOT document: {file_path}")
+        print(f"[OK] AIGC mark added to UOF document: {file_path}")
     elif ext == '.ofd':
         ofd_aigc_decorator.decorate(file_path, content, add_visible_mark)
         print(f"[OK] AIGC mark added to OFD document: {file_path}")
@@ -100,17 +105,22 @@ def add_aigc_mark(file_path: str, add_visible_mark: bool = True):
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Add AIGC mark to DOCX/PDF/XLSX/XLTX/PPTX/MD/XMind/UOT/OFD/Image/Audio/Video files",
+        description="Add AIGC mark to OOXML (docx/dotx/pptx/potx/xlsx/xltx) / UOF (uot/uott/uos/uost/uop/uopt) / PDF / OFD / MD / XMind / Image / Audio / Video files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
     python main.py document.docx
+    python main.py template.dotx
     python main.py report.pdf
     python main.py data.xlsx
     python main.py template.xltx
     python main.py presentation.pptx
+    python main.py template.potx
     python main.py mindmap.xmind
     python main.py document.uot
+    python main.py template.uott
+    python main.py sheet.uos
+    python main.py slides.uop
     python main.py document.ofd
     python main.py photo.jpg
     python main.py image.png
@@ -121,7 +131,7 @@ Examples:
     python main.py document.docx --skip-visible  # Skip visible mark
         """
     )
-    parser.add_argument('file_path', help='Path to the target file (.docx, .pdf, .xlsx, .xltx, .pptx, .md, .xmind, .uot, .ofd, .jpg, .png, etc.)')
+    parser.add_argument('file_path', help='Path to the target file (.docx, .dotx, .pptx, .potx, .xlsx, .xltx, .uot, .uott, .uos, .uost, .uop, .uopt, .pdf, .ofd, .md, .xmind, .jpg, .png, etc.)')
     parser.add_argument('--skip-visible', action='store_true',
                         help='Skip adding visible AIGC mark, only add metadata')
 

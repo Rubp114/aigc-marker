@@ -1,7 +1,7 @@
 ---
 name: aigc_marker
-description: 为已存在的文件添加 AIGC（AI生成内容）标识。支持 DOCX、PDF、Excel (.xlsx/.xltx)、PPTX、Markdown、HTML (.html/.htm)、XMind (.xmind)、UOT (.uot)、OFD (.ofd)、图片 (.jpg/.jpeg/.png/.webp/.heic/.heif)、音频 (.wav/.mp3/.ogg/.flac/.m4a)、视频 (.mp4/.flv/.mkv/.avi)。当用户要求给文件"添加 AIGC 标识 / AI 生成标记 / 打标"时触发。
-version: 2.0.0
+description: 为已存在的文件添加 AIGC（AI生成内容）标识。文本格式覆盖：OOXML (.docx/.dotx/.pptx/.potx/.xlsx/.xltx)、UOF (.uot/.uott/.uos/.uost/.uop/.uopt)、PDF (.pdf)、OFD (.ofd)、Markdown (.md)、XMind (.xmind)；另支持 HTML (.html/.htm)、图片 (.jpg/.jpeg/.png/.webp/.heic/.heif)、音频 (.wav/.mp3/.ogg/.flac/.m4a)、视频 (.mp4/.flv/.mkv/.avi)。当用户要求给文件"添加 AIGC 标识 / AI 生成标记 / 打标"时触发。
+version: 2.1.0
 entry: scripts/main.py
 author: celia
 ---
@@ -13,6 +13,8 @@ author: celia
 ## 何时使用
 
 用户要求对已存在的文件添加 AIGC / AI 生成标识，且文件扩展名在下表中。**此 skill 只修改已存在的文件，不创建新文档。**
+
+文本文件格式按规范覆盖六类：a) OOXML（docx/dotx/pptx/potx/xlsx/xltx）；b) UOF（uot/uott/uos/uost/uop/uopt）；c) PDF；d) OFD；e) Markdown；f) XMind。另支持 HTML、图片、音频、视频。
 
 ## 调用方式
 
@@ -28,14 +30,16 @@ cd <skill_dir>/scripts && python main.py <文件绝对路径> [--skip-visible]
 
 | 扩展名 | 隐式标识写入位置 | 显式标识 |
 |--------|------------------|----------|
-| `.docx` | 自定义文档属性 `AIGC` | 文末追加段落"内容由AI生成" |
+| `.docx` / `.dotx` | 自定义文档属性 `AIGC`（dotx 保持模板类型不变） | 文末追加段落"内容由AI生成" |
 | `.pdf` | PDF 元数据 | 每页底部标识 |
 | `.xlsx` / `.xltx` | 自定义文档属性 `AIGC`（xltx 保持模板类型不变） | 每个 sheet 末尾追加一行"内容由AI生成" |
-| `.pptx` | 自定义文档属性 `AIGC` | 末页追加标识 |
+| `.pptx` / `.potx` | 自定义文档属性 `AIGC`（potx 保持模板类型不变） | 首页右下角追加"内容由AI生成"文本框 |
 | `.md` | YAML frontmatter `AIGC:` 块 | 文末追加"内容由AI生成" |
 | `.html` / `.htm` | 无（仅显式） | 正文末尾插入固定定位的"内容由AI生成"条 |
 | `.xmind` | `metadata.json` 增加 `AIGC` 键；旧版格式写入 `meta.xml` 的 `<AIGC>` 元素 | 每个画布根主题添加标签"内容由AI生成" |
-| `.uot` | XML 注释 `<!--AIGC:{json}-->`（置于 XML 声明之后，不影响 UOF schema 校验） | 正文末尾追加段落"内容由AI生成"（自动适配文件的文字处理命名空间前缀） |
+| `.uot` / `.uott` | XML 注释 `<!--AIGC:{json}-->`（置于 XML 声明之后，不影响 UOF schema 校验） | 正文末尾追加段落"内容由AI生成"（自动适配文字处理命名空间前缀） |
+| `.uos` / `.uost` | 同上（XML 注释） | 最后一个工作表末尾追加一行单元格"内容由AI生成"（自动适配电子表格命名空间前缀） |
+| `.uop` / `.uopt` | 同上（XML 注释） | 最后一页幻灯片末尾追加段落"内容由AI生成"（自动适配演示文稿命名空间前缀） |
 | `.ofd` | `OFD.xml` 的 `DocInfo/CustomDatas` 增加 `CustomData Name="AIGC"` | 每页右下角追加 TextObject"内容由AI生成"（自动分配 MaxUnitID、复用或补充字体资源） |
 | `.jpg` `.jpeg` `.png` `.webp` `.heic` `.heif` | EXIF UserComment / PNG tEXt | 右下角"AI生成"水印（字号 ≥ 最短边 5%） |
 | `.wav` `.mp3` `.ogg` `.flac` `.m4a` | 音频元数据 | 末尾追加"AI"摩斯码节奏 |
@@ -57,9 +61,12 @@ cd <skill_dir>/scripts && python main.py <文件绝对路径> [--skip-visible]
 
 ## 自然语言触发示例
 
-- 帮我把 document.docx 加上 AIGC 标记
+- 帮我把 document.docx / template.dotx 加上 AIGC 标记
 - 为 report.pdf 添加 AI 生成标识
 - 给 data.xlsx / template.xltx 打上 AIGC 标签
+- 给 slides.pptx / template.potx 加 AIGC 标记
 - 给 mindmap.xmind 加 AI 标识
-- 为 document.uot / document.ofd 添加 AIGC 标识
+- 为 document.uot / template.uott 添加 AIGC 标识
+- 为 sheet.uos / sheet.uost / slides.uop / slides.uopt 添加 AIGC 标识
+- 为 document.ofd 添加 AIGC 标识
 - 给 video.mp4 加 AI 水印（嫌慢可追加 --skip-visible 只写元数据）

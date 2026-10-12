@@ -1,4 +1,10 @@
-"""DOCX AIGC decorator."""
+"""DOCX AIGC decorator.
+
+Covers both .docx and .dotx. python-docx refuses to open files whose main part
+content type is ``template.main+xml``, so .dotx files are temporarily opened
+with the regular document content type and the template type is restored after
+saving (only that one string differs between .docx and .dotx).
+"""
 import os.path
 import zipfile
 from xml.etree import ElementTree as ET
@@ -7,11 +13,17 @@ import docx
 from docx.shared import Pt
 from docx_extend.api import DocumentExtend
 
-from decorators.common import DEFAULT_CUSTOM_PROPERTY_FMTID, get_aigc_signature, is_aigc_complete, parse_aigc_json
+from decorators.common import (
+    DEFAULT_CUSTOM_PROPERTY_FMTID, get_aigc_signature, is_aigc_complete,
+    parse_aigc_json, swap_main_content_type,
+)
+
+_WML_TEMPLATE_CT = 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml'
+_WML_DOCUMENT_CT = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
 
 
 class DocxAigcDecorator:
-    """DOCX AIGC decorator - adds hidden AIGC mark to Word documents."""
+    """DOCX AIGC decorator - adds hidden AIGC mark to Word documents (.docx, .dotx)."""
 
     def __init__(self):
         self.name = "docx_aigc_decorator"
@@ -48,15 +60,21 @@ class DocxAigcDecorator:
         return None
 
     def _add_aigc_mark(self, file_path: str, signature: str, add_visible_mark: bool = True):
-        """Add custom property to DOCX file using docx library."""
+        """Add custom property to DOCX/DOTX file using docx library."""
         if not file_path or not os.path.exists(file_path):
             raise FileNotFoundError(f"Target file not found: {file_path}")
 
-        doc = docx.Document(file_path)
-        if add_visible_mark:
-            self._add_visible_mark_to_docx(doc)
-        self._add_implicit_mark(doc, signature)
-        doc.save(file_path)
+        # Open templates with the regular document content type, restore after.
+        is_template = swap_main_content_type(file_path, _WML_TEMPLATE_CT, _WML_DOCUMENT_CT)
+        try:
+            doc = docx.Document(file_path)
+            if add_visible_mark:
+                self._add_visible_mark_to_docx(doc)
+            self._add_implicit_mark(doc, signature)
+            doc.save(file_path)
+        finally:
+            if is_template:
+                swap_main_content_type(file_path, _WML_DOCUMENT_CT, _WML_TEMPLATE_CT)
 
     def _add_visible_mark_to_docx(self, doc: docx.Document):
         """Add visible AIGC mark paragraph to DOCX file."""

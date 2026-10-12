@@ -20,6 +20,30 @@ def check_xltx():
     print("xltx OK: template content type preserved, AIGC custom prop present")
 
 
+def check_dotx():
+    p = os.path.join(FIXTURE_DIR, "test.dotx")
+    with zipfile.ZipFile(p) as z:
+        ct = z.read("[Content_Types].xml").decode()
+        assert "template.main+xml" in ct, "dotx lost template content type!"
+        custom = z.read("docProps/custom.xml").decode()
+        assert 'name="AIGC"' in custom, "dotx missing AIGC custom prop"
+        doc = z.read("word/document.xml").decode()
+        assert "内容由AI生成" in doc, "dotx visible mark missing"
+    print("dotx OK: template content type preserved, AIGC custom prop + visible paragraph")
+
+
+def check_potx():
+    p = os.path.join(FIXTURE_DIR, "test.potx")
+    with zipfile.ZipFile(p) as z:
+        ct = z.read("[Content_Types].xml").decode()
+        assert "template.main+xml" in ct, "potx lost template content type!"
+        custom = z.read("docProps/custom.xml").decode()
+        assert 'name="AIGC"' in custom, "potx missing AIGC custom prop"
+        slide = z.read("ppt/slides/slide1.xml").decode()
+        assert "内容由AI生成" in slide, "potx visible mark missing"
+    print("potx OK: template content type preserved, AIGC custom prop + slide textbox")
+
+
 def check_xmind_modern():
     p = os.path.join(FIXTURE_DIR, "modern.xmind")
     with zipfile.ZipFile(p) as z:
@@ -62,6 +86,59 @@ def check_uot():
     print("uot OK: comment after declaration, paragraph in section, XML well-formed")
 
 
+def check_uott():
+    p = os.path.join(FIXTURE_DIR, "test.uott")
+    with open(p, encoding="utf-8") as f:
+        text = f.read()
+    assert text.count("<!--AIGC:") == 1
+    assert text.count("内容由AI生成") == 1
+    ET.fromstring(re.sub(r'<!--AIGC:.*?-->', '', text))
+    print("uott OK: comment + visible paragraph, XML well-formed")
+
+
+def _check_uof_sheet(path):
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    assert text.count("<!--AIGC:") == 1, "AIGC comment missing or duplicated"
+    assert text.count("内容由AI生成") == 1, "visible cell missing or duplicated"
+    assert re.match(r'<\?xml[^?]*\?>\s*<!--AIGC:', text), "comment not after declaration"
+    # visible row inserted inside the last worksheet
+    assert re.search(r'<表:行><表:单元格><表:数据>内容由AI生成</表:数据></表:单元格></表:行></表:工作表>',
+                     text), "visible row not inside worksheet"
+    ET.fromstring(re.sub(r'<!--AIGC:.*?-->', '', text))
+
+
+def _check_uof_slide(path):
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    assert text.count("<!--AIGC:") == 1, "AIGC comment missing or duplicated"
+    assert text.count("内容由AI生成") == 1, "visible paragraph missing or duplicated"
+    assert re.match(r'<\?xml[^?]*\?>\s*<!--AIGC:', text), "comment not after declaration"
+    # visible paragraph inserted inside the last slide
+    assert re.search(r'<演:段落 标识符="aigc_visible_mark">.*?</演:幻灯片>', text, re.DOTALL)
+    ET.fromstring(re.sub(r'<!--AIGC:.*?-->', '', text))
+
+
+def check_uos():
+    _check_uof_sheet(os.path.join(FIXTURE_DIR, "test.uos"))
+    print("uos OK: comment after declaration, row in worksheet, XML well-formed")
+
+
+def check_uost():
+    _check_uof_sheet(os.path.join(FIXTURE_DIR, "test.uost"))
+    print("uost OK: comment after declaration, row in worksheet, XML well-formed")
+
+
+def check_uop():
+    _check_uof_slide(os.path.join(FIXTURE_DIR, "test.uop"))
+    print("uop OK: comment after declaration, paragraph in slide, XML well-formed")
+
+
+def check_uopt():
+    _check_uof_slide(os.path.join(FIXTURE_DIR, "test.uopt"))
+    print("uopt OK: comment after declaration, paragraph in slide, XML well-formed")
+
+
 def check_ofd():
     p = os.path.join(FIXTURE_DIR, "test.ofd")
     with zipfile.ZipFile(p) as z:
@@ -88,8 +165,15 @@ def check_ofd():
 
 if __name__ == "__main__":
     check_xltx()
+    check_dotx()
+    check_potx()
     check_xmind_modern()
     check_xmind_legacy()
     check_uot()
+    check_uott()
+    check_uos()
+    check_uost()
+    check_uop()
+    check_uopt()
     check_ofd()
     print("\nALL CONTENT CHECKS PASSED")

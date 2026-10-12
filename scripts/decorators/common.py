@@ -107,6 +107,22 @@ def parse_aigc_json(raw: str) -> dict | None:
         return None
 
 
+def swap_main_content_type(file_path: str, old_ct: str, new_ct: str) -> bool:
+    """Swap the main-document content type in [Content_Types].xml in place.
+
+    python-docx / python-pptx refuse to open template files (.dotx/.potx)
+    whose main part content type is ``*.template.main+xml``. Swapping it to the
+    regular document content type lets the library open the file; swapping back
+    after saving preserves the template type. Returns True if a swap happened.
+    """
+    with zipfile.ZipFile(file_path, "r") as zf:
+        ct = zf.read("[Content_Types].xml").decode("utf-8")
+    if old_ct not in ct:
+        return False
+    rewrite_zip(file_path, {"[Content_Types].xml": ct.replace(old_ct, new_ct)})
+    return True
+
+
 def rewrite_zip(file_path: str, replacements: dict) -> None:
     """Rewrite a zip-based file in place, replacing/adding the given entries.
 

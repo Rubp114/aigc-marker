@@ -1,14 +1,25 @@
-"""PPT AIGC decorator."""
+"""PPT AIGC decorator.
+
+Covers both .pptx and .potx. python-pptx refuses to open files whose main part
+content type is ``template.main+xml``, so .potx files are temporarily opened
+with the regular presentation content type and the template type is restored
+after saving (only that one string differs between .pptx and .potx).
+"""
 import zipfile
 from xml.etree import ElementTree as ET
 
 from ppt_extend.aigc import add_aigc_mark_to_pptx
 
-from decorators.common import get_aigc_signature, is_aigc_complete, parse_aigc_json
+from decorators.common import (
+    get_aigc_signature, is_aigc_complete, parse_aigc_json, swap_main_content_type,
+)
+
+_PML_TEMPLATE_CT = 'application/vnd.openxmlformats-officedocument.presentationml.template.main+xml'
+_PML_PRESENTATION_CT = 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml'
 
 
 class PptAigcDecorator:
-    """PPT AIGC decorator - adds hidden AIGC mark to PowerPoint presentations."""
+    """PPT AIGC decorator - adds hidden AIGC mark to PowerPoint presentations (.pptx, .potx)."""
 
     def __init__(self):
         self.name = "ppt_aigc_decorator"
@@ -21,7 +32,13 @@ class PptAigcDecorator:
             return
         try:
             aigc_signature = get_aigc_signature(content)
-            add_aigc_mark_to_pptx(file_path, file_path, aigc_signature, add_visible_mark)
+            # Open templates with the regular presentation content type, restore after.
+            is_template = swap_main_content_type(file_path, _PML_TEMPLATE_CT, _PML_PRESENTATION_CT)
+            try:
+                add_aigc_mark_to_pptx(file_path, file_path, aigc_signature, add_visible_mark)
+            finally:
+                if is_template:
+                    swap_main_content_type(file_path, _PML_PRESENTATION_CT, _PML_TEMPLATE_CT)
             print(f"  [PPT] AIGC mark added successfully")
         except Exception as e:
             print(f"  [PPT] Warning: Failed to add AIGC mark: {str(e)}")
